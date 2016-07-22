@@ -2,10 +2,25 @@
 
 . /usr/share/conjure-up/hooklib/common.sh
 
+JUJU_PROVIDERTYPE="lxd"
+
 if [ $JUJU_PROVIDERTYPE = "lxd" ] || [ $JUJU_PROVIDERTYPE = "localhost" ]; then
     profilename=$(juju switch | cut -d: -f2)
+    juju_profilename="juju-$profilename"
+
+    retries=0
+    until [ $retries -ge 5 ]
+    do
+        lxc profile list | grep -q $juju_profilename && break
+        retries=$[retries+1]
+        sleep 2
+    done
+    if [ $retries = 5 ]; then
+        exposeResult "Could not find juju profile $juju_profilename" 1 "false"
+    fi
+
     debug "processing $profilename"
-    sed "s/##MODEL##/$profilename/" $SCRIPTPATH/lxd-profile.yaml | lxc profile edit "juju-$profilename"
+    sed "s/##MODEL##/$profilename/" $SCRIPTPATH/lxd-profile.yaml | lxc profile edit $juju_profilename
 
     RET=$?
     if [ $RET -ne 0 ]; then
